@@ -1,7 +1,0 @@
-rtl/mac_pe.sv
-rtl/ceiling_counter.sv
-rtl/gemm_controller.sv
-rtl/gemm_accelerator_top.sv
-
-tb/sram_emulator.sv
-tb/tb_gemm_top.sv

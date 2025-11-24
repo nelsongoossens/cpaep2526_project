@@ -1,7 +1,8 @@
-rtl/mac_pe.sv
-rtl/ceiling_counter.sv
-rtl/gemm_controller.sv
-rtl/gemm_accelerator_top.sv
+rtl/common/multi_port_memory.sv
+rtl/common/ceiling_counter.sv
 
-tb/sram_emulator.sv
+rtl/gemm/general_mac_pe.sv
+rtl/gemm/gemm_controller.sv
+rtl/gemm/gemm_accelerator_top.sv
+
 tb/tb_one_mac_gemm.sv

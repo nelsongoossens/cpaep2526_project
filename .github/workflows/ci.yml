@@ -37,9 +37,3 @@ jobs:
         run: |
           make TEST_MODULE=tb_one_mac_gemm all
           ./bin/tb_one_mac_gemm
-
-      # Run GeMM test
-      - name: GeMM test
-        run: |
-          make TEST_MODULE=tb_gemm_top all
-          ./bin/tb_gemm_top

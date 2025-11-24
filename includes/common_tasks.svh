@@ -18,6 +18,7 @@ task clk_delay(
       @(posedge clk_i);
     end
   end
+  #1;
 endtask
 
 task clk_unit_delay();
