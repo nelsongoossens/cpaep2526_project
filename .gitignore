@@ -4,3 +4,4 @@
 /vsim.wlf
 tb_mac_pe.vcd
 bin/tb_one_mac_gemm
+.DS_Store
