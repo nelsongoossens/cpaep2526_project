@@ -118,7 +118,7 @@ module gemm_accelerator_top #(
   // DESIGN NOTE:
   // This part is the address generation logic for the input and output SRAMs.
   // In our example, we made the assumption that both matrices A and B
-  // are stored in row-major order.
+  // are stored in row-major order. yes
   //
   // Please adjust this part to align with your designed memory layout
   // The counters are used for the matrix A and matrix B address generation;
