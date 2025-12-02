@@ -45,6 +45,7 @@ module tb_one_mac_gemm;
   logic rst_ni;
   logic start;
   logic done;
+  logic [AddrWidth-1:0] test_depth;
 
   //---------------------------
   // Memory
@@ -272,8 +273,9 @@ module tb_one_mac_gemm;
       // Execute the GeMM
       start_and_wait_gemm();
 
+      test_depth = M_i * N_i;
       // Verify the result
-      verify_result_c(G_memory, i_sram_c.memory, DataDepth,
+      verify_result_c(G_memory, i_sram_c.memory, test_depth,
                       0 // Set this to 1 to make mismatches fatal
       );
 
