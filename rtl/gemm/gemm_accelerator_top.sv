@@ -52,48 +52,34 @@ module gemm_accelerator_top #(
   input  logic signed [RowPar-1:0][InDataWidth-1:0]              sram_a_rdata_i,
   input  logic signed [ColPar-1:0][InDataWidth-1:0]              sram_b_rdata_i,
   output logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] sram_c_wdata_o,
-  output logic        [RowPar-1:0][ColPar-1:0]                   sram_c_we_o,
+  output logic                                                   sram_c_we_o,
   output logic                                                   done_o
 );
 
   //---------------------------
   // Wires
   //---------------------------
-  logic [SizeAddrWidth-1:0] M_tiles;
-  logic [SizeAddrWidth-1:0] N_tiles;
+
+  // logic [SizeAddrWidth-1:0] M_tiles;
+  // logic [SizeAddrWidth-1:0] N_tiles;
 
   logic [SizeAddrWidth-1:0] M_count;
   logic [SizeAddrWidth-1:0] K_count;
   logic [SizeAddrWidth-1:0] N_count;
 
-  logic [SizeAddrWidth-1:0] row_base;
-  logic [SizeAddrWidth-1:0] col_base;
+  // logic [SizeAddrWidth-1:0] row_base;
+  // logic [SizeAddrWidth-1:0] col_base;
 
-  logic [RowPar-1:0]        row_valid;
-  logic [ColPar-1:0]        col_valid;
-
-  logic signed [ColPar-1:0][InDataWidth-1:0] weight_reg;
-  logic signed [ColPar-1:0][InDataWidth-1:0] weight_data;
-  logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] pe_c;
+  // logic [RowPar-1:0]        row_valid;
+  // logic [ColPar-1:0]        col_valid;
 
   logic busy;
-  logic tile_result_valid;
+  // logic tile_result_valid;
   logic valid_data;
   assign valid_data = start_i || busy;
 
-  assign row_base = M_count * RowPar; //TODO: wat dit is of het nut ervan is ook nog ni duidelijk
-  assign col_base = N_count * ColPar;
-
-  assign M_tiles = (M_size_i + RowPar - 1) / RowPar; //TODO: deze calculation maakt nog geen sense
-  assign N_tiles = (N_size_i + ColPar - 1) / ColPar;
-
-  for(genvar r = 0; r<RowPar; r++) begin : gen_row_valid
-    assign row_valid[r] = (row_base + SizeAddrWidth'(r)) < M_size_i;
-  end
-
-  for(genvar c = 0; c<ColPar; c++) begin : gen_col_valid
-    assign col_valid[c] = (col_base + SizeAddrWidth'(c)) < N_size_i;
-  end
+  // assign M_tiles = (M_size_i + RowPar - 1) / RowPar; //TODO: deze calculation maakt nog geen sense
+  // assign N_tiles = (N_size_i + ColPar - 1) / ColPar;
 
 
   //---------------------------
@@ -117,7 +103,7 @@ module gemm_accelerator_top #(
     .rst_ni         ( rst_ni      ),
     .start_i        ( start_i     ),
     .input_valid_i  ( valid_data  ),
-    .result_valid_o ( tile_result_valid ),
+    .result_valid_o ( 1'b1 ),       // tile_result_valid
     .busy_o         ( busy        ),
     .done_o         ( done_o      ),
     .M_size_i       ( M_tiles     ),
@@ -144,22 +130,25 @@ module gemm_accelerator_top #(
   //---------------------------
 
   // Input addresses for matrices A and B
-  // assign sram_a_addr_o = (M_count * K_size_i + K_count);
-  // assign sram_b_addr_o = (K_count * N_size_i + N_count);
-  for (genvar r = 0; r<RowPar; r++) begin : gen_a_addr
-    assign sram_a_addr_o[r] = (M_count * K_size_i + K_count);
+  for(genvar m = 0; m < RowPar; m++) begin : gen_a_addr
+    assign sram_a_addr_o[m] = (M_count * K_size_i + SizeAddrWidth'(m));
+  end
+  
+  for(genvar n = 0; n < ColPar; n++) begin : gen_b_addr
+    assign sram_b_addr_o[n] = (K_count * N_size_i + SizeAddrWidth'(n));
   end
 
-  for (genvar c = 0; c<ColPar; c++) begin : gen_b_addr
-    assign sram_b_addr_o[c] = (K_count * N_size_i + N_count);
-  end
 
   // Output address for matrix C
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      sram_c_addr_o <= '0;
-    end else if (1'b1) begin  // Always valid in this simple design
-      sram_c_addr_o <= (M_count * N_size_i + N_count);
+  for(genvar m = 0; m < RowPar; m++) begin : row_c_addr
+    for(genvar n = 0; n < ColPar; n++) begin : col_c_addr
+      always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+          sram_c_addr_o[m][n] <= '0;
+        end else if (1'b1) begin  // Always valid in this simple design
+          sram_c_addr_o[m][n] <= SizeAddrWidth'(m) * N_size_i + SizeAddrWidth'(n);
+        end
+      end
     end
   end
 
@@ -203,7 +192,6 @@ module gemm_accelerator_top #(
   //---------------------------
 
   // The MAC PE instantiation and data path logics
-  genvar m, k, n;
   
   for (m = 0; m < RowPar; m++) begin : gem_mac_pe_m
     for (n = 0; n < ColPar; n++) begin : gem_mac_pe_n
@@ -214,13 +202,13 @@ module gemm_accelerator_top #(
               ) i_mac_pe (
               .clk_i        ( clk_i                  ),
               .rst_ni       ( rst_ni                 ),
-              .a_i          ( sram_a_rdata_i         ),
-              .b_i          ( sram_b_rdata_i         ),
+              .a_i          ( sram_a_rdata_i[m]      ),
+              .b_i          ( sram_b_rdata_i[n]      ),
               .a_valid_i    ( valid_data             ),
               .b_valid_i    ( valid_data             ),
               .init_save_i  ( sram_c_we_o || start_i ),
               .acc_clr_i    ( !busy                  ),
-              .c_o          ( sram_c_wdata_o         )
+              .c_o          ( sram_c_wdata_o[m][n]   )
             );
     end
   end

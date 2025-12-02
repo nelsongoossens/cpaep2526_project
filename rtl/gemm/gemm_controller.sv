@@ -128,7 +128,7 @@ module gemm_controller #(
     .rst_ni       ( rst_ni         ),
     .tick_i       ( move_N_counter ),
     .clear_i      ( clear_counters ),
-    .ceiling_i    ( N_size_i       ),
+    .ceiling_i    ( N_size_i/16    ),
     .count_o      ( N_count_o      ),
     .last_value_o ( move_M_counter )
   );
@@ -142,7 +142,7 @@ module gemm_controller #(
     .rst_ni       ( rst_ni                  ),
     .tick_i       ( move_M_counter          ),
     .clear_i      ( clear_counters          ),
-    .ceiling_i    ( M_size_i                ),
+    .ceiling_i    ( M_size_i/4              ),
     .count_o      ( M_count_o               ),
     .last_value_o ( last_counter_last_value )
   );
