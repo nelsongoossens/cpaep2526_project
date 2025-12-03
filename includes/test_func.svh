@@ -45,19 +45,20 @@ function automatic void gemm_golden(
   output logic signed [ OG_OutDataWidth-1:0 ] Y_o [DataDepth]
 );
   int unsigned m, n, k;
-  int signed acc;
-  int unsigned a_elem, b_elem;
+  logic signed [OG_OutDataWidth-1:0] acc;
+  logic signed [InDataWidth-1:0] a_elem;
+  logic signed [InDataWidth-1:0] b_elem;
 
   for (m = 0; m < M; m++) begin
     for (n = 0; n<N; n++) begin
-      acc = 0;
+      acc = '0;
       for (k = 0; k < K; k++) begin
         // unpack A[m][k] from A_i[k]
         a_elem = A_i[k][m*InDataWidth +: InDataWidth];
         // unpack B[k][n] from B_i[k]
         b_elem = B_i[k][n*InDataWidth +: InDataWidth];
 
-        acc += $signed(a_elem) * $signed(b_elem);
+        acc += a_elem * b_elem;
       end
       Y_o[m*N + n] = acc;
     end

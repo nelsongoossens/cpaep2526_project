@@ -285,7 +285,7 @@ module tb_one_mac_gemm;
 
       test_depth = M_i * N_i;
       // Verify the result
-      verify_result_c_one_address(G_memory, i_sram_c.memory[0],
+      verify_result_c_one_address(G_memory, i_sram_c.memory[1],
                       0 // Set this to 1 to make mismatches fatal
       );
 
