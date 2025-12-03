@@ -22,7 +22,7 @@
 //-----------------------------
 // DESIGN NOTE:
 // You are allowed to modify the Datadepth and
-// DataWidth parameters to suit your design requirements.
+// DataWidth parameters to suit your dgesin requirements.
 //-----------------------------
 module single_port_memory #(
     parameter int unsigned DataWidth = 8,

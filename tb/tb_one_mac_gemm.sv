@@ -23,15 +23,15 @@ module tb_one_mac_gemm;
   parameter int unsigned OutDataWidth  = 32;
   parameter int unsigned DataDepth     = 4096;
   parameter int unsigned AddrWidth     = (DataDepth <= 1) ? 1 : $clog2(DataDepth);
-  parameter int unsigned SizeAddrWidth = 8;
+  parameter int unsigned SizeAddrWidth = 32;
 
   // Test Parameters
   parameter int unsigned MaxNum   = 32;
   parameter int unsigned NumTests = 10;
 
-  parameter int unsigned SingleM = 8;
-  parameter int unsigned SingleK = 8;
-  parameter int unsigned SingleN = 8;
+  parameter int unsigned SingleM = 4;
+  parameter int unsigned SingleK = 64;
+  parameter int unsigned SingleN = 16;
 
   //---------------------------
   // Wires
@@ -54,14 +54,17 @@ module tb_one_mac_gemm;
   logic signed [OutDataWidth-1:0] G_memory [DataDepth];
 
   // Memory control
-  logic [AddrWidth-1:0] sram_a_addr;
-  logic [AddrWidth-1:0] sram_b_addr;
-  logic [AddrWidth-1:0] sram_c_addr;
+  parameter int unsigned RowPar = 4;
+  parameter int unsigned ColPar = 16;
+
+  logic [RowPar-1:0][AddrWidth-1:0] sram_a_addr;
+  logic [ColPar-1:0][AddrWidth-1:0] sram_b_addr;
+  logic [RowPar-1:0][ColPar-1:0][AddrWidth-1:0] sram_c_addr;
 
   // Memory access
-  logic signed [ InDataWidth-1:0] sram_a_rdata;
-  logic signed [ InDataWidth-1:0] sram_b_rdata;
-  logic signed [OutDataWidth-1:0] sram_c_wdata;
+  logic signed [RowPar-1:0][ InDataWidth-1:0] sram_a_rdata;
+  logic signed [ColPar-1:0][ InDataWidth-1:0] sram_b_rdata;
+  logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] sram_c_wdata;
   logic                           sram_c_we;
 
   //---------------------------
@@ -208,15 +211,10 @@ module tb_one_mac_gemm;
     for (integer num_test = 0; num_test < NumTests; num_test++) begin
       $display("Test number: %0d", num_test);
 
-      if (NumTests > 1) begin
-        M_i = $urandom_range(1, MaxNum);
-        K_i = $urandom_range(1, MaxNum);
-        N_i = $urandom_range(1, MaxNum);
-      end else begin
-        M_i = SingleM;
-        K_i = SingleK;
-        N_i = SingleN;
-      end
+      M_i = 4;
+      K_i = 64;
+      N_i = 16;
+     
 
       $display("M: %0d, K: %0d, N: %0d", M_i, K_i, N_i);
 

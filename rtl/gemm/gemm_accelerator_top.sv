@@ -46,11 +46,11 @@ module gemm_accelerator_top #(
   input  logic        [SizeAddrWidth-1:0]                        M_size_i,
   input  logic        [SizeAddrWidth-1:0]                        K_size_i,
   input  logic        [SizeAddrWidth-1:0]                        N_size_i,
-  output logic        [RowPar-1:0][AddrWidth-1:0]                sram_a_addr_o,
-  output logic        [ColPar-1:0][AddrWidth-1:0]                sram_b_addr_o,
-  output logic        [RowPar-1:0][ColPar-1:0][AddrWidth-1:0]    sram_c_addr_o,
-  input  logic signed [RowPar-1:0][InDataWidth-1:0]              sram_a_rdata_i,
-  input  logic signed [ColPar-1:0][InDataWidth-1:0]              sram_b_rdata_i,
+  output logic        [AddrWidth-1:0]                            sram_a_addr_o,
+  output logic        [AddrWidth-1:0]                            sram_b_addr_o,
+  output logic        [AddrWidth-1:0]                            sram_c_addr_o,
+  input  logic signed [InDataWidth-1:0]                          sram_a_rdata_i,
+  input  logic signed [InDataWidth-1:0]                          sram_b_rdata_i,
   output logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] sram_c_wdata_o,
   output logic                                                   sram_c_we_o,
   output logic                                                   done_o
@@ -81,7 +81,10 @@ module gemm_accelerator_top #(
   // assign M_tiles = (M_size_i + RowPar - 1) / RowPar; //TODO: deze calculation maakt nog geen sense
   // assign N_tiles = (N_size_i + ColPar - 1) / ColPar;
 
-
+  // define input data for mac array 
+  logic [RowPar-1:0][InDataWidth-1:0]       DATA_input_A;
+  logic [ColPar-1:0][InDataWidth-1:0]       DATA_input_B;
+  logic [ColPar*RowPar*OutDataWidth-1:0]    fused_output_C;
   //---------------------------
   // DESIGN NOTE:
   // This is a simple GeMM accelerator design using a single MAC PE.
@@ -103,12 +106,12 @@ module gemm_accelerator_top #(
     .rst_ni         ( rst_ni      ),
     .start_i        ( start_i     ),
     .input_valid_i  ( valid_data  ),
-    .result_valid_o ( 1'b1 ),       // tile_result_valid
+    .result_valid_o ( sram_c_we_o ),       // tile_result_valid // TODO
     .busy_o         ( busy        ),
     .done_o         ( done_o      ),
-    .M_size_i       ( M_tiles     ),
+    .M_size_i       ( M_size_i     ),
     .K_size_i       ( K_size_i    ),
-    .N_size_i       ( N_tiles     ),
+    .N_size_i       ( N_size_i     ),
     .M_count_o      ( M_count     ),
     .K_count_o      ( K_count     ),
     .N_count_o      ( N_count     )
@@ -128,29 +131,35 @@ module gemm_accelerator_top #(
   // Just be careful to know on which cycle the addresses are valid.
   // Align it carefully with the testbench's memory control.
   //---------------------------
+  genvar m, n;
 
   // Input addresses for matrices A and B
-  for(genvar m = 0; m < RowPar; m++) begin : gen_a_addr
-    assign sram_a_addr_o[m] = (M_count * K_size_i + SizeAddrWidth'(m));
+  assign sram_a_addr_o = (K_count);  // contains 4 inputs of 8bits (1 column)  == 32 bits
+  assign sram_b_addr_o = (K_count);  // contains 16 inputs of 8 bits (1 row)  == 128 bits
+
+
+  // assign input data to diff rows and cols of mac array
+  for(m = 0; m < RowPar; m++) begin : gen_a_addr
+    assign DATA_input_A[m] = sram_a_rdata_i[31 - 8*m: 24 - 8*m];  
   end
   
-  for(genvar n = 0; n < ColPar; n++) begin : gen_b_addr
-    assign sram_b_addr_o[n] = (K_count * N_size_i + SizeAddrWidth'(n));
+  for(n = 0; n < ColPar; n++) begin : gen_b_addr
+    assign DATA_input_B[n] = sram_b_rdata_i[127 - 8*n: 120 - 8*n]; 
   end
 
+  
 
   // Output address for matrix C
-  for(genvar m = 0; m < RowPar; m++) begin : row_c_addr
-    for(genvar n = 0; n < ColPar; n++) begin : col_c_addr
-      always_ff @(posedge clk_i or negedge rst_ni) begin
-        if (!rst_ni) begin
-          sram_c_addr_o[m][n] <= '0;
-        end else if (1'b1) begin  // Always valid in this simple design
-          sram_c_addr_o[m][n] <= SizeAddrWidth'(m) * N_size_i + SizeAddrWidth'(n);
-        end
-      end
+  
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      sram_c_addr_o <= '0;
+    end else if (1'b1) begin  // Always valid in this simple design
+      sram_c_addr_o <= '1;
     end
   end
+    
+ 
 
   //---------------------------
   // DESIGN NOTE:
@@ -181,7 +190,7 @@ module gemm_accelerator_top #(
   // 
   // There are many guides on the internet (or even ChatGPT) about generate-for loops.
   // We will give it as an exercise to you to modify this part to support multiple MAC PEs.
-  // 
+  // 	
   // When dealing with multiple PEs, be careful with the connection alignment
   // across different PEs as it can be tricky to debug later on.
   // Plan this very carefully, especially when dealing with the correct data ports
@@ -202,8 +211,8 @@ module gemm_accelerator_top #(
               ) i_mac_pe (
               .clk_i        ( clk_i                  ),
               .rst_ni       ( rst_ni                 ),
-              .a_i          ( sram_a_rdata_i[m]      ),
-              .b_i          ( sram_b_rdata_i[n]      ),
+              .a_i          ( DATA_input_A[m]      ),
+              .b_i          ( DATA_input_B[n]      ),
               .a_valid_i    ( valid_data             ),
               .b_valid_i    ( valid_data             ),
               .init_save_i  ( sram_c_we_o || start_i ),
@@ -212,6 +221,9 @@ module gemm_accelerator_top #(
             );
     end
   end
+
+  assign fused_output_C = {<<{sram_c_wdata_o}}; // "streaming concatenation"
+
   
 
 endmodule
