@@ -19,8 +19,9 @@ module tb_one_mac_gemm;
   //---------------------------
 
   // General Parameters
-  parameter int unsigned InDataWidth   = 8;
-  parameter int unsigned OutDataWidth  = 32;
+  parameter int unsigned InDataWidth_a   = 32; // 4 inputs van 8 bits
+  parameter int unsigned InDataWidth_b   = 64; // 16 inputs van 8 bits
+  parameter int unsigned OutDataWidth  = 2048; // 64 outputs van 8 bits
   parameter int unsigned DataDepth     = 4096;
   parameter int unsigned AddrWidth     = (DataDepth <= 1) ? 1 : $clog2(DataDepth);
   parameter int unsigned SizeAddrWidth = 32;
@@ -91,7 +92,7 @@ module tb_one_mac_gemm;
   // Input memory A
   // Note: this is read only
   single_port_memory #(
-    .DataWidth     ( InDataWidth  ),
+    .DataWidth     ( InDataWidth_a  ),
     .DataDepth     ( DataDepth    ),
     .AddrWidth     ( AddrWidth    )
   ) i_sram_a (
@@ -106,7 +107,7 @@ module tb_one_mac_gemm;
   // Input memory B
   // Note: this is read only
   single_port_memory #(
-    .DataWidth     ( InDataWidth  ),
+    .DataWidth     ( InDataWidth_b  ),
     .DataDepth     ( DataDepth    ),
     .AddrWidth     ( AddrWidth    )
   ) i_sram_b (
