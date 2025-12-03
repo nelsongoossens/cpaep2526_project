@@ -19,9 +19,11 @@ module tb_one_mac_gemm;
   //---------------------------
 
   // General Parameters
+  parameter int unsigned OG_OutDataWidth = 32;
+  parameter int unsigned InDataWidth 	 = 8;
   parameter int unsigned InDataWidth_a   = 32; // 4 inputs van 8 bits
-  parameter int unsigned InDataWidth_b   = 64; // 16 inputs van 8 bits
-  parameter int unsigned OutDataWidth  = 2048; // 64 outputs van 8 bits
+  parameter int unsigned InDataWidth_b   = 128; // 16 inputs van 8 bits
+  parameter int unsigned OutDataWidth  = 2048; // 64 outputs van 32 bits
   parameter int unsigned DataDepth     = 4096;
   parameter int unsigned AddrWidth     = (DataDepth <= 1) ? 1 : $clog2(DataDepth);
   parameter int unsigned SizeAddrWidth = 32;
@@ -52,20 +54,20 @@ module tb_one_mac_gemm;
   // Memory
   //---------------------------
   // Golden data dump
-  logic signed [OutDataWidth-1:0] G_memory [DataDepth];
+  logic signed [OG_OutDataWidth-1:0] G_memory [DataDepth];
 
   // Memory control
   parameter int unsigned RowPar = 4;
   parameter int unsigned ColPar = 16;
 
-  logic [RowPar-1:0][AddrWidth-1:0] sram_a_addr;
-  logic [ColPar-1:0][AddrWidth-1:0] sram_b_addr;
-  logic [RowPar-1:0][ColPar-1:0][AddrWidth-1:0] sram_c_addr;
+  logic [AddrWidth-1:0] sram_a_addr;
+  logic [AddrWidth-1:0] sram_b_addr;
+  logic [AddrWidth-1:0] sram_c_addr;
 
   // Memory access
-  logic signed [RowPar-1:0][ InDataWidth-1:0] sram_a_rdata;
-  logic signed [ColPar-1:0][ InDataWidth-1:0] sram_b_rdata;
-  logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] sram_c_wdata;
+  logic signed [ InDataWidth_a-1:0] sram_a_rdata;
+  logic signed [ InDataWidth_b-1:0] sram_b_rdata;
+  logic signed [ OutDataWidth-1:0 ] sram_c_wdata;
   logic                           sram_c_we;
 
   //---------------------------
@@ -139,7 +141,9 @@ module tb_one_mac_gemm;
   //---------------------------
   gemm_accelerator_top #(
     .InDataWidth   ( InDataWidth   ),
-    .OutDataWidth  ( OutDataWidth  ),
+    .InDataWidth_a ( InDataWidth_a ),
+    .InDataWidth_b ( InDataWidth_b ),
+    .OutDataWidth  ( OG_OutDataWidth  ),
     .AddrWidth     ( AddrWidth     ),
     .SizeAddrWidth ( SizeAddrWidth )
   ) i_dut (
@@ -251,17 +255,24 @@ module tb_one_mac_gemm;
       //---------------------------
 
       // Initialize memories with random data
-      for (integer m = 0; m < M_i; m++) begin
-        for (integer k = 0; k < K_i; k++) begin
-          i_sram_a.memory[m*K_i+k] = $urandom() % (2 ** InDataWidth);
-        end
-      end
+      
+      // A: each word holds 4×8-bit elements in 32 bits
+	for (integer addr = 0; addr < K_i; addr++) begin
+  		logic [InDataWidth_a-1:0] word_a;  // 32 bits
+  		for (int j = 0; j < InDataWidth_a / InDataWidth; j++) begin
+    			word_a[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
+  		end
+  	i_sram_a.memory[addr] = word_a;
+	end
 
-      for (integer k = 0; k < K_i; k++) begin
-        for (integer n = 0; n < N_i; n++) begin
-          i_sram_b.memory[k*N_i+n] = $urandom() % (2 ** InDataWidth);
-        end
-      end
+	// B: each word holds 16×8-bit elements in 128 bits
+	for (integer addr = 0; addr < K_i; addr++) begin
+  		logic [InDataWidth_b-1:0] word_b;  // 128 bits
+  		for (int j = 0; j < InDataWidth_b / InDataWidth; j++) begin
+    			word_b[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
+  		end
+  	i_sram_b.memory[addr] = word_b;
+	end
 
       // Generate golden result
       gemm_golden(M_i, K_i, N_i, i_sram_a.memory, i_sram_b.memory, G_memory);
@@ -274,7 +285,7 @@ module tb_one_mac_gemm;
 
       test_depth = M_i * N_i;
       // Verify the result
-      verify_result_c_one_address(G_memory, i_sram_c.memory,
+      verify_result_c_one_address(G_memory, i_sram_c.memory[0],
                       0 // Set this to 1 to make mismatches fatal
       );
 

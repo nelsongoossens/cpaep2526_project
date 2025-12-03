@@ -44,7 +44,6 @@ end
 endtask
 
 parameter int unsigned TileSize = 64;
-parameter int unsigned OG_OutDataWidth = 32;
 
 task automatic verify_result_c_one_address(
   input logic signed [OG_OutDataWidth-1:0] golden_data [DataDepth],

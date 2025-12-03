@@ -34,6 +34,8 @@
 
 module gemm_accelerator_top #(
   parameter int unsigned InDataWidth = 8,
+  parameter int unsigned InDataWidth_a = 32,
+  parameter int unsigned InDataWidth_b = 128,
   parameter int unsigned OutDataWidth = 32,
   parameter int unsigned AddrWidth = 16,
   parameter int unsigned SizeAddrWidth = 8,
@@ -49,9 +51,9 @@ module gemm_accelerator_top #(
   output logic        [AddrWidth-1:0]                            sram_a_addr_o,
   output logic        [AddrWidth-1:0]                            sram_b_addr_o,
   output logic        [AddrWidth-1:0]                            sram_c_addr_o,
-  input  logic signed [InDataWidth-1:0]                          sram_a_rdata_i,
-  input  logic signed [InDataWidth-1:0]                          sram_b_rdata_i,
-  output logic signed [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] sram_c_wdata_o,
+  input  logic signed [InDataWidth_a-1:0]                        sram_a_rdata_i,
+  input  logic signed [InDataWidth_b-1:0]                        sram_b_rdata_i,
+  output logic signed [RowPar*ColPar*OutDataWidth-1:0] 		 sram_c_wdata_o,
   output logic                                                   sram_c_we_o,
   output logic                                                   done_o
 );
@@ -84,7 +86,7 @@ module gemm_accelerator_top #(
   // define input data for mac array 
   logic [RowPar-1:0][InDataWidth-1:0]       DATA_input_A;
   logic [ColPar-1:0][InDataWidth-1:0]       DATA_input_B;
-  logic [ColPar*RowPar*OutDataWidth-1:0]    fused_output_C;
+  logic [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] temp_C;
   //---------------------------
   // DESIGN NOTE:
   // This is a simple GeMM accelerator design using a single MAC PE.
@@ -139,23 +141,23 @@ module gemm_accelerator_top #(
 
 
   // assign input data to diff rows and cols of mac array
-  for(m = 0; m < RowPar; m++) begin : gen_a_addr
-    assign DATA_input_A[m] = sram_a_rdata_i[31 - 8*m: 24 - 8*m];  
+  // Better: same orientation as packing
+  for (m = 0; m < RowPar; m++) begin : gen_a_addr
+    assign DATA_input_A[m] = sram_a_rdata_i[m*InDataWidth +: InDataWidth];
   end
-  
-  for(n = 0; n < ColPar; n++) begin : gen_b_addr
-    assign DATA_input_B[n] = sram_b_rdata_i[127 - 8*n: 120 - 8*n]; 
+
+  for (n = 0; n < ColPar; n++) begin : gen_b_addr
+    assign DATA_input_B[n] = sram_b_rdata_i[n*InDataWidth +: InDataWidth];
   end
 
   
 
   // Output address for matrix C
-  
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       sram_c_addr_o <= '0;
     end else if (1'b1) begin  // Always valid in this simple design
-      sram_c_addr_o <= '1;
+      sram_c_addr_o <= 12'd1;
     end
   end
     
@@ -217,12 +219,12 @@ module gemm_accelerator_top #(
               .b_valid_i    ( valid_data             ),
               .init_save_i  ( sram_c_we_o || start_i ),
               .acc_clr_i    ( !busy                  ),
-              .c_o          ( sram_c_wdata_o[m][n]   )
+              .c_o          ( temp_C[m][n]   )
             );
     end
   end
 
-  assign fused_output_C = {<<{sram_c_wdata_o}}; // "streaming concatenation"
+  assign  sram_c_wdata_o = {<<{temp_C}}; // "streaming concatenation"
 
   
 
