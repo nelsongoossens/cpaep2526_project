@@ -221,7 +221,7 @@ module gemm_accelerator_top #(
     end
   end
 
-  assign  sram_c_wdata_o = {>>{temp_C}}; // "streaming concatenation"
+  assign  sram_c_wdata_o = {>>{temp_C}};
 
   
 

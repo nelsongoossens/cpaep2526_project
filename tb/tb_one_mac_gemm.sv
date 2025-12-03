@@ -216,9 +216,13 @@ module tb_one_mac_gemm;
     for (integer num_test = 0; num_test < NumTests; num_test++) begin
       $display("Test number: %0d", num_test);
 
-      M_i = 4;
+      // M_i = 4;
+      // K_i = 64;
+      // N_i = 16;
+
+      M_i = 16;
       K_i = 64;
-      N_i = 16;
+      N_i = 4;
      
 
       $display("M: %0d, K: %0d, N: %0d", M_i, K_i, N_i);
@@ -257,25 +261,26 @@ module tb_one_mac_gemm;
       // Initialize memories with random data
       
       // A: each word holds 4×8-bit elements in 32 bits
-	for (integer addr = 0; addr < K_i; addr++) begin
-  		logic [InDataWidth_a-1:0] word_a;  // 32 bits
-  		for (int j = 0; j < InDataWidth_a / InDataWidth; j++) begin
-    			word_a[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
-  		end
-  	i_sram_a.memory[addr] = word_a;
-	end
+	    for (integer addr = 0; addr < K_i; addr++) begin
+  		  logic [InDataWidth_a-1:0] word_a;  // 32 bits
+  		  for (int j = 0; j < InDataWidth_a / InDataWidth; j++) begin
+    			  word_a[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
+  		  end
+  	  i_sram_a.memory[addr] = word_a;
+	    end
 
-	// B: each word holds 16×8-bit elements in 128 bits
-	for (integer addr = 0; addr < K_i; addr++) begin
-  		logic [InDataWidth_b-1:0] word_b;  // 128 bits
-  		for (int j = 0; j < InDataWidth_b / InDataWidth; j++) begin
-    			word_b[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
-  		end
-  	i_sram_b.memory[addr] = word_b;
-	end
+	    // B: each word holds 16×8-bit elements in 128 bits
+	    for (integer addr = 0; addr < K_i; addr++) begin
+  		  logic [InDataWidth_b-1:0] word_b;  // 128 bits
+  		  for (int j = 0; j < InDataWidth_b / InDataWidth; j++) begin
+    			  word_b[j*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
+  		  end
+  	  i_sram_b.memory[addr] = word_b;
+	    end
 
       // Generate golden result
-      gemm_golden(M_i, K_i, N_i, i_sram_a.memory, i_sram_b.memory, G_memory);
+      // gemm_golden(M_i, K_i, N_i, i_sram_a.memory, i_sram_b.memory, G_memory);
+      gemm_golden_2(M_i, K_i, N_i, i_sram_a.memory, i_sram_b.memory, G_memory);
 
       // Just delay 1 cycle
       clk_delay(1);
