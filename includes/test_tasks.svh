@@ -43,6 +43,31 @@ begin
 end
 endtask
 
+parameter int unsigned TileSize = 64;
+parameter int unsigned OG_OutDataWidth = 32;
+
+task automatic verify_result_c_one_address(
+  input logic signed [OG_OutDataWidth-1:0] golden_data [DataDepth],
+  input logic signed [OutDataWidth-1:0] actual_data,
+  input logic                           fatal_on_mismatch
+);
+begin
+  // Compare with SRAM C contents
+  logic signed [OG_OutDataWidth-1:0] c_entry;
+  $display("Verifying %0d packed C entries in one word", TileSize);
+  for (int unsigned i = 0; i < TileSize; i++) begin
+    c_entry = actual_data[i*OG_OutDataWidth +: OG_OutDataWidth];
+    if (golden_data[i] !== c_entry) begin
+    $display("ERROR: C[%0d] mismatch: expected %h, got %h",
+            i, golden_data[i], c_entry);
+    if (fatal_on_mismatch)
+      $fatal;
+    end
+  end
+  $display("Result matrix C verification passed!");
+end
+endtask
+
 task automatic verify_result_tile(
   input logic signed [OutDataWidth-1:0] golden_data [DataDepth],
   input logic signed [OutDataWidth-1:0] actual_data [DataDepth],
