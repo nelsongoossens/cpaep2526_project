@@ -80,13 +80,11 @@ module gemm_accelerator_top #(
   logic valid_data;
   assign valid_data = start_i || busy;
 
-  // assign M_tiles = (M_size_i + RowPar - 1) / RowPar; //TODO: deze calculation maakt nog geen sense
-  // assign N_tiles = (N_size_i + ColPar - 1) / ColPar;
-
   // define input data for mac array 
   logic [RowPar-1:0][InDataWidth-1:0]       DATA_input_A;
   logic [ColPar-1:0][InDataWidth-1:0]       DATA_input_B;
   logic [RowPar-1:0][ColPar-1:0][OutDataWidth-1:0] temp_C;
+
   //---------------------------
   // DESIGN NOTE:
   // This is a simple GeMM accelerator design using a single MAC PE.
@@ -108,7 +106,7 @@ module gemm_accelerator_top #(
     .rst_ni         ( rst_ni      ),
     .start_i        ( start_i     ),
     .input_valid_i  ( valid_data  ),
-    .result_valid_o ( sram_c_we_o ),       // tile_result_valid // TODO
+    .result_valid_o ( sram_c_we_o ),
     .busy_o         ( busy        ),
     .done_o         ( done_o      ),
     .M_size_i       ( M_size_i     ),
@@ -136,8 +134,8 @@ module gemm_accelerator_top #(
   genvar m, n;
 
   // Input addresses for matrices A and B
-  assign sram_a_addr_o = (K_count);  // contains 4 inputs of 8bits (1 column)  == 32 bits
-  assign sram_b_addr_o = (K_count);  // contains 16 inputs of 8 bits (1 row)  == 128 bits
+  assign sram_a_addr_o = M_count * K_size_i + K_count;  // contains 4 inputs of 8bits (1 column)  == 32 bits
+  assign sram_b_addr_o = N_count * K_size_i + K_count ;  // contains 16 inputs of 8 bits (1 row)  == 128 bits
 
 
   // assign input data to diff rows and cols of mac array
@@ -150,14 +148,13 @@ module gemm_accelerator_top #(
     assign DATA_input_B[n] = sram_b_rdata_i[n*InDataWidth +: InDataWidth];
   end
 
-  
 
   // Output address for matrix C
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       sram_c_addr_o <= '0;
     end else if (1'b1) begin  // Always valid in this simple design
-      sram_c_addr_o <= 12'd1;
+      sram_c_addr_o <= M_count * (N_size_i / ColPar) + N_count;
     end
   end
     
