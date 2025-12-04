@@ -198,7 +198,8 @@ module tb_gemm_variable_dimensions;
           wordA = '0;
           for (q = 0; q < RowPar; q++) begin
             if (rb*RowPar + q < M_i)
-              wordA[q*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+              //wordA[q*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+              wordA[q*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
             else
               wordA[q*InDataWidth +: InDataWidth] = 0;
           end
@@ -226,7 +227,8 @@ module tb_gemm_variable_dimensions;
           wordB = '0;
           for (l = 0; l < ColPar; l++) begin
             if (cb*ColPar + l < N_i)
-              wordB[l*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+              // wordB[l*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+              wordB[l*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
             else
               wordB[l*InDataWidth +: InDataWidth] = 0;
           end
@@ -320,8 +322,8 @@ module tb_gemm_variable_dimensions;
   // VERIFY TILES
   // ================================================================
   // ================================================================
-// VERIFY TILES — with full per-element printing
-// ================================================================
+  // VERIFY TILES — with full per-element printing
+  // ================================================================
 	task automatic verify_tiles();
 	  int t;
 	  int i;
@@ -340,19 +342,25 @@ module tb_gemm_variable_dimensions;
 	      $display("-----------------------------------------------");
 
 	      for (i = 0; i < TileSize; i++) begin
-		actual = data[i*OutDataWidth +: OutDataWidth];
-		golden = golden_results[t*TileSize + i];
+		      actual = data[i*OutDataWidth +: OutDataWidth];
+		      golden = golden_results[t*TileSize + i];
 
-		if (actual === golden) begin
-		  $display("  Tile %0d Elem %0d : OK     | actual = %0d (0x%h) | golden = %0d (0x%h)",
-		            t, i, actual, actual, golden, golden);
-		end
-		else begin
-		  $display("  Tile %0d Elem %0d : MISMATCH!", t, i);
-		  $display("       actual = %0d (0x%h)", actual, actual);
-		  $display("       golden = %0d (0x%h)", golden, golden);
-		  $fatal;   // stop immediately on mismatch
-		end
+		      // if (actual === golden) begin
+		      //   $display("  Tile %0d Elem %0d : OK     | actual = %0d (0x%h) | golden = %0d (0x%h)",
+		      //       t, i, actual, actual, golden, golden);
+		      // end
+		      // else begin
+		      //   $display("  Tile %0d Elem %0d : MISMATCH!", t, i);
+		      //   $display("       actual = %0d (0x%h)", actual, actual);
+		      //   $display("       golden = %0d (0x%h)", golden, golden);
+		      //   $fatal;   // stop immediately on mismatch
+		      // end
+          if (actual !== golden) begin
+            $display("  Tile %0d Elem %0d : MISMATCH!", t, i);
+		        $display("       actual = %0d (0x%h)", actual, actual);
+		        $display("       golden = %0d (0x%h)", golden, golden);
+		        $fatal;   // stop immediately on mismatch
+          end
 	      end
 
 	      $display("Tile %0d verification COMPLETE — all elements match.\n", t);
@@ -378,7 +386,7 @@ module tb_gemm_variable_dimensions;
     // ------------------------------------------------------------
     // TEST 1: 32×32 multiply 32×32
     // ------------------------------------------------------------
-    $display("\n========== TEST 1: 32×32 ==========\n");
+    $display("\n========== TEST 1: 32X32 - Case 3 ==========\n");
 
     M_i = 32;
     K_i = 32;
@@ -401,7 +409,7 @@ module tb_gemm_variable_dimensions;
     // ------------------------------------------------------------
     // TEST 2: 4×64 multiply 64×16 (one tile)
     // ------------------------------------------------------------
-    $display("\n========== TEST 2: 4×64 × 64×16 ==========\n");
+    $display("\n========== TEST 2: 4X64 X 64X16 - Case 1 ==========\n");
 
     M_i = 4;
     K_i = 64;
@@ -419,6 +427,29 @@ module tb_gemm_variable_dimensions;
     verify_tiles();
 
     $display("TEST 2 PASSED.\n");
+
+    // ------------------------------------------------------------
+    // TEST 3: 16×64 multiply 64×4 (one tile)
+    // Put transposed A in sram_B, put transposed B in sram_A --> answer is transposed C in sram_C
+    // ------------------------------------------------------------
+    $display("\n========== TEST 3: 16X64 X 64X4 - Case 2 ==========\n");
+
+    M_i = 4;
+    K_i = 64;
+    N_i = 16;
+
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
+    Total_tiles = 1;
+
+    init_mem_A();
+    init_mem_B();
+    compute_golden();
+    clk_delay(2);
+    start_and_wait();
+    verify_tiles();
+
+    $display("TEST 3 PASSED.\n");    
 
     $display("====================================");
     $display("           ALL TESTS PASSED");

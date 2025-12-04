@@ -62,21 +62,11 @@ module gemm_accelerator_top #(
   // Wires
   //---------------------------
 
-  // logic [SizeAddrWidth-1:0] M_tiles;
-  // logic [SizeAddrWidth-1:0] N_tiles;
-
   logic [SizeAddrWidth-1:0] M_count;
   logic [SizeAddrWidth-1:0] K_count;
   logic [SizeAddrWidth-1:0] N_count;
 
-  // logic [SizeAddrWidth-1:0] row_base;
-  // logic [SizeAddrWidth-1:0] col_base;
-
-  // logic [RowPar-1:0]        row_valid;
-  // logic [ColPar-1:0]        col_valid;
-
   logic busy;
-  // logic tile_result_valid;
   logic valid_data;
   assign valid_data = start_i || busy;
 
