@@ -2,34 +2,37 @@
 
 module tb_gemm_variable_dimensions;
 
-  // ==========================================================
+  // ================================================================
   // PARAMETERS
-  // ==========================================================
+  // ================================================================
   parameter int InDataWidth    = 8;
   parameter int RowPar         = 4;
   parameter int ColPar         = 16;
 
-  parameter int InDataWidth_a  = RowPar * InDataWidth;   // 32 bits
-  parameter int InDataWidth_b  = ColPar * InDataWidth;   // 128 bits
+  parameter int InDataWidth_a  = RowPar * InDataWidth;     // 32 bits
+  parameter int InDataWidth_b  = ColPar  * InDataWidth;    // 128 bits
   parameter int OutDataWidth   = 32;
 
   parameter int DataDepth      = 4096;
-  parameter int AddrWidth      = $clog2(DataDepth);
+  parameter int AddrWidth      = (DataDepth <= 1) ? 1 : $clog2(DataDepth);
   parameter int SizeAddrWidth  = 32;
 
-  localparam int TileSize       = RowPar * ColPar;            // 64
-  localparam int PackedOutWidth = TileSize * OutDataWidth;    // 2048
+  localparam int TileSize       = RowPar * ColPar;         // 64
+  localparam int PackedOutWidth = TileSize * OutDataWidth; // 2048 bits
 
 
-  // ==========================================================
+
+  // ================================================================
   // DUT SIGNALS
-  // ==========================================================
+  // ================================================================
   logic clk_i;
   logic rst_ni;
   logic start_i;
   logic done_o;
 
-  logic [SizeAddrWidth-1:0] M_i, K_i, N_i;
+  logic [SizeAddrWidth-1:0] M_i;
+  logic [SizeAddrWidth-1:0] K_i;
+  logic [SizeAddrWidth-1:0] N_i;
 
   logic [AddrWidth-1:0] sram_a_addr_o;
   logic [AddrWidth-1:0] sram_b_addr_o;
@@ -38,26 +41,30 @@ module tb_gemm_variable_dimensions;
   logic signed [InDataWidth_a-1:0]  sram_a_rdata_i;
   logic signed [InDataWidth_b-1:0]  sram_b_rdata_i;
   logic signed [PackedOutWidth-1:0] sram_c_wdata_o;
-  logic                             sram_c_we_o;
+
+  logic sram_c_we_o;
 
 
-  // ==========================================================
+
+  // ================================================================
   // INTERNAL TB STORAGE
-  // ==========================================================
-  logic signed [OutDataWidth-1:0] golden_results [DataDepth];
+  // ================================================================
+  logic signed [OutDataWidth-1:0] C_scalar        [DataDepth];
+  logic signed [OutDataWidth-1:0] golden_results  [DataDepth];
 
   int M_tiles;
   int N_tiles;
   int Total_tiles;
 
 
-  // ==========================================================
+
+  // ================================================================
   // MEMORY MODELS
-  // ==========================================================
+  // ================================================================
   single_port_memory #(
-    .DataWidth (InDataWidth_a),
-    .DataDepth (DataDepth),
-    .AddrWidth (AddrWidth)
+    .DataWidth(InDataWidth_a),
+    .DataDepth(DataDepth),
+    .AddrWidth(AddrWidth)
   ) memA (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
@@ -68,9 +75,9 @@ module tb_gemm_variable_dimensions;
   );
 
   single_port_memory #(
-    .DataWidth (InDataWidth_b),
-    .DataDepth (DataDepth),
-    .AddrWidth (AddrWidth)
+    .DataWidth(InDataWidth_b),
+    .DataDepth(DataDepth),
+    .AddrWidth(AddrWidth)
   ) memB (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
@@ -81,9 +88,9 @@ module tb_gemm_variable_dimensions;
   );
 
   single_port_memory #(
-    .DataWidth (PackedOutWidth),
-    .DataDepth (DataDepth),
-    .AddrWidth (AddrWidth)
+    .DataWidth(PackedOutWidth),
+    .DataDepth(DataDepth),
+    .AddrWidth(AddrWidth)
   ) memC (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
@@ -94,18 +101,19 @@ module tb_gemm_variable_dimensions;
   );
 
 
-  // ==========================================================
+
+  // ================================================================
   // DUT
-  // ==========================================================
+  // ================================================================
   gemm_accelerator_top #(
-    .InDataWidth   (InDataWidth),
-    .InDataWidth_a (InDataWidth_a),
-    .InDataWidth_b (InDataWidth_b),
-    .OutDataWidth  (OutDataWidth),
-    .AddrWidth     (AddrWidth),
-    .SizeAddrWidth (SizeAddrWidth),
-    .RowPar        (RowPar),
-    .ColPar        (ColPar)
+    .InDataWidth(InDataWidth),
+    .InDataWidth_a(InDataWidth_a),
+    .InDataWidth_b(InDataWidth_b),
+    .OutDataWidth(OutDataWidth),
+    .AddrWidth(AddrWidth),
+    .SizeAddrWidth(SizeAddrWidth),
+    .RowPar(RowPar),
+    .ColPar(ColPar)
   ) dut (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
@@ -124,171 +132,242 @@ module tb_gemm_variable_dimensions;
   );
 
 
-  // ==========================================================
-  // CLOCK
-  // ==========================================================
+
+  // ================================================================
+  // CLOCK GENERATION
+  // ================================================================
   initial begin
     clk_i = 1'b0;
     forever #5 clk_i = ~clk_i;
   end
 
-  task automatic clk_delay(int n);
-    repeat(n) @(posedge clk_i);
+  task automatic clk_delay(input int n);
+    int i;
+    begin
+      for (i = 0; i < n; i++) begin
+        @(posedge clk_i);
+      end
+    end
   endtask
 
 
-  // ==========================================================
-  // START + WAIT
-  // ==========================================================
+
+  // ================================================================
+  // START AND WAIT TASK
+  // ================================================================
   task automatic start_and_wait();
     int cycles;
-    cycles = 0;
+    begin
+      cycles = 0;
 
-    @(posedge clk_i);
-    start_i <= 1;
-    @(posedge clk_i);
-    start_i <= 0;
-
-    while (!done_o) begin
       @(posedge clk_i);
-      cycles++;
-      if (cycles > 200000) begin
-        $display("ERROR: Timeout waiting for done_o");
-        $fatal;
-      end
-    end
+      start_i = 1'b1;
 
-    @(posedge clk_i);
-    $display("DONE in %0d cycles", cycles);
-  endtask
+      @(posedge clk_i);
+      start_i = 1'b0;
 
-
-  // ==========================================================
-  // MEMORY INITIALIZATION FOR A & B
-  // ==========================================================
-  task automatic init_mem_A();
-    int tile_row, k, q, addr;
-    logic [InDataWidth_a-1:0] word_a;
-
-    for (tile_row = 0; tile_row < M_tiles; tile_row++) begin
-      for (k = 0; k < K_i; k++) begin
-        addr = tile_row*K_i + k;
-        for (q = 0; q < RowPar; q++) begin
-          if (tile_row*RowPar + q < M_i)
-            word_a[q*InDataWidth +: InDataWidth] = $urandom();
-          else
-            word_a[q*InDataWidth +: InDataWidth] = 0;
-        end
-        memA.memory[addr] = word_a;
-      end
-    end
-  endtask
-
-
-  task automatic init_mem_B();
-    int tile_col, k, l, addr;
-    logic [InDataWidth_b-1:0] word_b;
-
-    for (tile_col = 0; tile_col < N_tiles; tile_col++) begin
-      for (k = 0; k < K_i; k++) begin
-        addr = tile_col*K_i + k;
-        for (l = 0; l < ColPar; l++) begin
-          if (tile_col*ColPar + l < N_i)
-            word_b[l*InDataWidth +: InDataWidth] = $urandom();
-          else
-            word_b[l*InDataWidth +: InDataWidth] = 0;
-        end
-        memB.memory[addr] = word_b;
-      end
-    end
-  endtask
-
-
-  // ==========================================================
-  // GOLDEN MODEL
-  // ==========================================================
-  task automatic compute_golden();
-    int tile_m, tile_n, q, l, k;
-    int global_m, global_n;
-    int tile_index;
-    int addrA, addrB;
-    int a_val, b_val;
-    longint acc;
-
-    for (int i = 0; i < DataDepth; i++)
-      golden_results[i] = 0;
-
-    for (tile_m = 0; tile_m < M_tiles; tile_m++) begin
-      for (tile_n = 0; tile_n < N_tiles; tile_n++) begin
-
-        tile_index = tile_m * N_tiles + tile_n;
-
-        for (q = 0; q < RowPar; q++) begin
-          for (l = 0; l < ColPar; l++) begin
-
-            global_m = tile_m*RowPar + q;
-            global_n = tile_n*ColPar + l;
-
-            if (global_m >= M_i || global_n >= N_i)
-              continue;
-
-            acc = 0;
-
-            for (k = 0; k < K_i; k++) begin
-              addrA = tile_m*K_i + k;
-              addrB = tile_n*K_i + k;
-
-              a_val = memA.memory[addrA][q*InDataWidth +: InDataWidth];
-              b_val = memB.memory[addrB][l*InDataWidth +: InDataWidth];
-
-              acc += $signed(a_val) * $signed(b_val);
-            end
-
-            golden_results[tile_index*TileSize + (q*ColPar + l)] = acc;
-          end
-        end
-
-      end
-    end
-  endtask
-
-
-  // ==========================================================
-  // VERIFICATION
-  // ==========================================================
-  task automatic verify_tiles();
-    int t, i;
-    logic signed [PackedOutWidth-1:0] data;
-    logic signed [OutDataWidth-1:0] actual, golden;
-
-    $display("Checking %0d tiles ...", Total_tiles);
-
-    for (t = 0; t < Total_tiles; t++) begin
-      data = memC.memory[t];
-
-      // RTL packs MSB ← temp_C[0][0]
-      for (i = 0; i < TileSize; i++) begin
-        actual = data[(TileSize-1-i)*OutDataWidth +: OutDataWidth];
-        golden = golden_results[t*TileSize + i];
-        if (actual !== golden) begin
-          $display("ERROR: Tile %0d elem %0d mismatch", t, i);
-          $display("  DUT   = %0d (0x%h)", actual, actual);
-          $display("  GOLD  = %0d (0x%h)", golden, golden);
+      while (!done_o) begin
+        @(posedge clk_i);
+        cycles++;
+        if (cycles > 200000) begin
+          $display("ERROR: TIMEOUT waiting for done_o");
           $fatal;
         end
       end
 
-      $display("Tile %0d OK", t);
+      @(posedge clk_i);
+      $display("DONE in %0d cycles", cycles);
     end
-
-    $display("Verification complete.");
   endtask
 
 
-  // ==========================================================
-  // MAIN TEST SEQUENCE (TWO TESTS)
-  // ==========================================================
+
+  // ================================================================
+  // MEMORY INITIALIZATION A
+  // ================================================================
+  task automatic init_mem_A();
+    int rb;
+    int k;
+    int q;
+    int addr;
+    logic [InDataWidth_a-1:0] wordA;
+    begin
+      for (rb = 0; rb < M_tiles; rb++) begin
+        for (k = 0; k < K_i; k++) begin
+          addr = rb*K_i + k;
+          wordA = '0;
+          for (q = 0; q < RowPar; q++) begin
+            if (rb*RowPar + q < M_i)
+              wordA[q*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+            else
+              wordA[q*InDataWidth +: InDataWidth] = 0;
+          end
+          memA.memory[addr] = wordA;
+        end
+      end
+    end
+  endtask
+
+
+
+  // ================================================================
+  // MEMORY INITIALIZATION B
+  // ================================================================
+  task automatic init_mem_B();
+    int cb;
+    int k;
+    int l;
+    int addr;
+    logic [InDataWidth_b-1:0] wordB;
+    begin
+      for (cb = 0; cb < N_tiles; cb++) begin
+        for (k = 0; k < K_i; k++) begin
+          addr = cb*K_i + k;
+          wordB = '0;
+          for (l = 0; l < ColPar; l++) begin
+            if (cb*ColPar + l < N_i)
+              wordB[l*InDataWidth +: InDataWidth] = $urandom_range(0,255);
+            else
+              wordB[l*InDataWidth +: InDataWidth] = 0;
+          end
+          memB.memory[addr] = wordB;
+        end
+      end
+    end
+  endtask
+
+
+
+  // ================================================================
+  // GOLDEN MODEL
+  // ================================================================
+  task automatic compute_golden();
+    int i;
+    int m;
+    int n;
+    int k;
+    int rb;
+    int off_m;
+    int cb;
+    int off_n;
+    int gm;
+    int gn;
+    int tile_m;
+    int tile_n;
+    int q;
+    int l;
+    int tile_index;
+
+    int addrA;
+    int addrB;
+    logic signed [InDataWidth-1:0] a_val;
+    logic signed [InDataWidth-1:0] b_val;
+
+    longint acc;
+
+    begin
+      for (i = 0; i < DataDepth; i++) begin
+        C_scalar[i]       = 0;
+        golden_results[i] = 0;
+      end
+
+      for (m = 0; m < M_i; m++) begin
+        for (n = 0; n < N_i; n++) begin
+          acc = 0;
+
+          rb    = m / RowPar;
+          off_m = m % RowPar;
+          cb    = n / ColPar;
+          off_n = n % ColPar;
+
+          for (k = 0; k < K_i; k++) begin
+            addrA = rb*K_i + k;
+            addrB = cb*K_i + k;
+
+            a_val = memA.memory[addrA][off_m*InDataWidth +: InDataWidth];
+            b_val = memB.memory[addrB][off_n*InDataWidth +: InDataWidth];
+
+            acc += $signed(a_val) * $signed(b_val);
+          end
+
+          C_scalar[m*N_i + n] = acc;
+        end
+      end
+
+      for (tile_m = 0; tile_m < M_tiles; tile_m++) begin
+        for (tile_n = 0; tile_n < N_tiles; tile_n++) begin
+
+          tile_index = tile_m*N_tiles + tile_n;
+
+          for (q = 0; q < RowPar; q++) begin
+            for (l = 0; l < ColPar; l++) begin
+              gm = tile_m*RowPar + q;
+              gn = tile_n*ColPar + l;
+              if (gm < M_i && gn < N_i)
+                golden_results[tile_index*TileSize + (q*ColPar + l)] =
+                  C_scalar[gm*N_i + gn];
+            end
+          end
+
+        end
+      end
+    end
+  endtask
+
+
+
+  // ================================================================
+  // VERIFY TILES
+  // ================================================================
+  // ================================================================
+// VERIFY TILES — with full per-element printing
+// ================================================================
+	task automatic verify_tiles();
+	  int t;
+	  int i;
+	  logic signed [PackedOutWidth-1:0] data;
+	  logic signed [OutDataWidth-1:0] actual;
+	  logic signed [OutDataWidth-1:0] golden;
+
+	  begin
+	    $display("Verifying %0d tiles...", Total_tiles);
+
+	    for (t = 0; t < Total_tiles; t++) begin
+	      data = memC.memory[t];
+
+	      $display("\n-----------------------------------------------");
+	      $display(" TILE %0d", t);
+	      $display("-----------------------------------------------");
+
+	      for (i = 0; i < TileSize; i++) begin
+		actual = data[i*OutDataWidth +: OutDataWidth];
+		golden = golden_results[t*TileSize + i];
+
+		if (actual === golden) begin
+		  $display("  Tile %0d Elem %0d : OK     | actual = %0d (0x%h) | golden = %0d (0x%h)",
+		            t, i, actual, actual, golden, golden);
+		end
+		else begin
+		  $display("  Tile %0d Elem %0d : MISMATCH!", t, i);
+		  $display("       actual = %0d (0x%h)", actual, actual);
+		  $display("       golden = %0d (0x%h)", golden, golden);
+		  $fatal;   // stop immediately on mismatch
+		end
+	      end
+
+	      $display("Tile %0d verification COMPLETE — all elements match.\n", t);
+	    end
+
+	    $display("ALL tiles verified OK.");
+	  end
+	endtask
+
+
+  // ================================================================
+  // MAIN TEST SEQUENCE — TWO TESTS
+  // ================================================================
   initial begin
+
     clk_i   = 0;
     rst_ni  = 0;
     start_i = 0;
@@ -296,18 +375,18 @@ module tb_gemm_variable_dimensions;
     clk_delay(5);
     rst_ni = 1;
 
-    // -------------------------------
-    // TEST 1: 32 × 32 × 32 × 32
-    // -------------------------------
-    $display("\n========== TEST 1: 32x32 ==========\n");
+    // ------------------------------------------------------------
+    // TEST 1: 32×32 multiply 32×32
+    // ------------------------------------------------------------
+    $display("\n========== TEST 1: 32×32 ==========\n");
 
     M_i = 32;
     K_i = 32;
     N_i = 32;
 
-    M_tiles     = M_i / RowPar;    // 32/4 = 8
-    N_tiles     = N_i / ColPar;    // 32/16 = 2
-    Total_tiles = M_tiles * N_tiles; // 16
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 8
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 2
+    Total_tiles = M_tiles * N_tiles;             // 16
 
     init_mem_A();
     init_mem_B();
@@ -319,17 +398,17 @@ module tb_gemm_variable_dimensions;
     $display("TEST 1 PASSED.\n");
 
 
-    // -------------------------------
-    // TEST 2: 4 × 64 × 64 × 16 (1 tile)
-    // -------------------------------
-    $display("\n========== TEST 2: 4x64 x 64x16 ==========\n");
+    // ------------------------------------------------------------
+    // TEST 2: 4×64 multiply 64×16 (one tile)
+    // ------------------------------------------------------------
+    $display("\n========== TEST 2: 4×64 × 64×16 ==========\n");
 
     M_i = 4;
     K_i = 64;
     N_i = 16;
 
-    M_tiles     = M_i / RowPar;     // 4/4 = 1
-    N_tiles     = N_i / ColPar;     // 16/16 = 1
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
     Total_tiles = 1;
 
     init_mem_A();
@@ -341,10 +420,9 @@ module tb_gemm_variable_dimensions;
 
     $display("TEST 2 PASSED.\n");
 
-
-    $display("\n===============================");
-    $display("        ALL TESTS PASSED");
-    $display("===============================\n");
+    $display("====================================");
+    $display("           ALL TESTS PASSED");
+    $display("====================================");
 
     $finish;
   end
