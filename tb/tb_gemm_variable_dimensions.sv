@@ -321,9 +321,7 @@ module tb_gemm_variable_dimensions;
   // ================================================================
   // VERIFY TILES
   // ================================================================
-  // ================================================================
-  // VERIFY TILES — with full per-element printing
-  // ================================================================
+
 	task automatic verify_tiles();
 	  int t;
 	  int i;
@@ -386,38 +384,87 @@ module tb_gemm_variable_dimensions;
     // ------------------------------------------------------------
     // TEST 1: 32×32 multiply 32×32
     // ------------------------------------------------------------
-    $display("\n========== TEST 1: 32X32 - Case 3 ==========\n");
 
-    M_i = 32;
-    K_i = 32;
-    N_i = 32;
+//    $display("\n========== TEST 1: 32×32 ==========\n");
+//
+  //  M_i = 32;
+  //  K_i = 32;
+  //  N_i = 32;
+//
+  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   // 8
+  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   // 2
+  //  Total_tiles = M_tiles * N_tiles;             // 16
+//
+  //  init_mem_A();
+  //  init_mem_B();
+  //  compute_golden();
+  ////  clk_delay(2);
+  //  start_and_wait();
+  //  verify_tiles();
 
-    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 8
-    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 2
-    Total_tiles = M_tiles * N_tiles;             // 16
 
-    init_mem_A();
-    init_mem_B();
-    compute_golden();
-    clk_delay(2);
-    start_and_wait();
-    verify_tiles();
-
-    $display("TEST 1 PASSED.\n");
+  //  $display("TEST 1 PASSED.\n");
 
 
     // ------------------------------------------------------------
     // TEST 2: 4×64 multiply 64×16 (one tile)
     // ------------------------------------------------------------
-    $display("\n========== TEST 2: 4X64 X 64X16 - Case 1 ==========\n");
 
-    M_i = 4;
+  //  $display("\n========== TEST 2: 4×64 × 64×16 ==========\n");
+
+
+  //  M_i = 4;
+  //  K_i = 64;
+  //  N_i = 16;
+
+  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
+  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
+  //  Total_tiles = M_tiles * N_tiles;
+
+//    init_mem_A();
+  //  init_mem_B();
+  //  compute_golden();
+  //  clk_delay(2);
+  //  start_and_wait();
+  //  verify_tiles();
+
+  //  $display("TEST 2 PASSED.\n");
+    
+    
+    // ------------------------------------------------------------
+    // TEST 3: 8×16 multiply 16×32 (4 tiles)
+    // ------------------------------------------------------------
+  //  $display("\n========== TEST 3: 8×16 × 16×32 ==========\n");
+
+  //  M_i = 8;
+  //  K_i = 16;
+  //  N_i = 32;
+
+  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   //2 
+  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   //2 
+  //  Total_tiles = M_tiles * N_tiles; //4
+
+  //  init_mem_A();
+  //  init_mem_B();
+  //  compute_golden();
+  //  clk_delay(2);
+  //  start_and_wait();
+  //  verify_tiles();
+
+  //  $display("TEST 3 PASSED.\n");
+    
+    // ------------------------------------------------------------
+    // TEST 4: 5×64 multiply 64×16 (two tiles)
+    // ------------------------------------------------------------
+    $display("\n========== TEST 4: 5×64 × 64×16 ==========\n");
+
+    M_i = 5;
     K_i = 64;
     N_i = 16;
 
-    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
-    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
-    Total_tiles = 1;
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   //2
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
+    Total_tiles = M_tiles * N_tiles; //2
 
     init_mem_A();
     init_mem_B();
@@ -426,7 +473,38 @@ module tb_gemm_variable_dimensions;
     start_and_wait();
     verify_tiles();
 
-    $display("TEST 2 PASSED.\n");
+    $display("TEST 4 PASSED.\n");
+    
+    
+    // ------------------------------------------------------------
+    // TEST 5: 4×30 multiply 30×10 (one tile)
+    // ------------------------------------------------------------
+    $display("\n========== TEST 5: 4×30 × 30×10 ==========\n");
+
+    M_i = 4;
+    K_i = 30;
+    N_i = 10;
+
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   //1
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
+    Total_tiles = M_tiles * N_tiles; //1
+
+    init_mem_A();
+    init_mem_B();
+    compute_golden();
+    clk_delay(2);
+    start_and_wait();
+    verify_tiles();
+
+    $display("TEST 5 PASSED.\n");
+    
+    
+    
+    
+    
+    
+    
+    
 
     // ------------------------------------------------------------
     // TEST 3: 16×64 multiply 64×4 (one tile)

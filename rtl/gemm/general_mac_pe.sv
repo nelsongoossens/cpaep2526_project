@@ -34,8 +34,8 @@ module general_mac_pe #(
   input  logic clk_i,
   input  logic rst_ni,
   // Input operands
-  input  logic signed [NumInputs-1:0][InDataWidth-1:0] a_i,
-  input  logic signed [NumInputs-1:0][InDataWidth-1:0] b_i,
+  input  wire signed [NumInputs-1:0][InDataWidth-1:0] a_i,
+  input  wire signed [NumInputs-1:0][InDataWidth-1:0] b_i,
   // Valid signals for inputs
   input  logic a_valid_i,
   input  logic b_valid_i,
