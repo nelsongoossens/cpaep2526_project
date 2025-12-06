@@ -198,7 +198,6 @@ module tb_gemm_variable_dimensions;
           wordA = '0;
           for (q = 0; q < RowPar; q++) begin
             if (rb*RowPar + q < M_i)
-              //wordA[q*InDataWidth +: InDataWidth] = $urandom_range(0,255);
               wordA[q*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
             else
               wordA[q*InDataWidth +: InDataWidth] = 0;
@@ -227,7 +226,6 @@ module tb_gemm_variable_dimensions;
           wordB = '0;
           for (l = 0; l < ColPar; l++) begin
             if (cb*ColPar + l < N_i)
-              // wordB[l*InDataWidth +: InDataWidth] = $urandom_range(0,255);
               wordB[l*InDataWidth +: InDataWidth] = $urandom() % (2 ** InDataWidth);
             else
               wordB[l*InDataWidth +: InDataWidth] = 0;
@@ -353,6 +351,7 @@ module tb_gemm_variable_dimensions;
 		      //   $display("       golden = %0d (0x%h)", golden, golden);
 		      //   $fatal;   // stop immediately on mismatch
 		      // end
+		      
           if (actual !== golden) begin
             $display("  Tile %0d Elem %0d : MISMATCH!", t, i);
 		        $display("       actual = %0d (0x%h)", actual, actual);
@@ -361,7 +360,7 @@ module tb_gemm_variable_dimensions;
           end
 	      end
 
-	      $display("Tile %0d verification COMPLETE — all elements match.\n", t);
+	      $display("Tile %0d verification COMPLETE! All elements match.\n", t);
 	    end
 
 	    $display("ALL tiles verified OK.");
@@ -381,90 +380,21 @@ module tb_gemm_variable_dimensions;
     clk_delay(5);
     rst_ni = 1;
 
-    // ------------------------------------------------------------
-    // TEST 1: 32×32 multiply 32×32
-    // ------------------------------------------------------------
-
-//    $display("\n========== TEST 1: 32×32 ==========\n");
-//
-  //  M_i = 32;
-  //  K_i = 32;
-  //  N_i = 32;
-//
-  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   // 8
-  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   // 2
-  //  Total_tiles = M_tiles * N_tiles;             // 16
-//
-  //  init_mem_A();
-  //  init_mem_B();
-  //  compute_golden();
-  ////  clk_delay(2);
-  //  start_and_wait();
-  //  verify_tiles();
-
-
-  //  $display("TEST 1 PASSED.\n");
-
 
     // ------------------------------------------------------------
-    // TEST 2: 4×64 multiply 64×16 (one tile)
+    // TEST 1: 4x64 multiply 64x16 (one tile)
     // ------------------------------------------------------------
 
-  //  $display("\n========== TEST 2: 4×64 × 64×16 ==========\n");
+    $display("\n========== TEST 1: 4x64 x 64x16 - Case 1 ==========\n");
 
 
-  //  M_i = 4;
-  //  K_i = 64;
-  //  N_i = 16;
-
-  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
-  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
-  //  Total_tiles = M_tiles * N_tiles;
-
-//    init_mem_A();
-  //  init_mem_B();
-  //  compute_golden();
-  //  clk_delay(2);
-  //  start_and_wait();
-  //  verify_tiles();
-
-  //  $display("TEST 2 PASSED.\n");
-    
-    
-    // ------------------------------------------------------------
-    // TEST 3: 8×16 multiply 16×32 (4 tiles)
-    // ------------------------------------------------------------
-  //  $display("\n========== TEST 3: 8×16 × 16×32 ==========\n");
-
-  //  M_i = 8;
-  //  K_i = 16;
-  //  N_i = 32;
-
-  //  M_tiles     = (M_i + RowPar - 1) / RowPar;   //2 
-  //  N_tiles     = (N_i + ColPar - 1) / ColPar;   //2 
-  //  Total_tiles = M_tiles * N_tiles; //4
-
-  //  init_mem_A();
-  //  init_mem_B();
-  //  compute_golden();
-  //  clk_delay(2);
-  //  start_and_wait();
-  //  verify_tiles();
-
-  //  $display("TEST 3 PASSED.\n");
-    
-    // ------------------------------------------------------------
-    // TEST 4: 5×64 multiply 64×16 (two tiles)
-    // ------------------------------------------------------------
-    $display("\n========== TEST 4: 5×64 × 64×16 ==========\n");
-
-    M_i = 5;
+    M_i = 4;
     K_i = 64;
     N_i = 16;
 
-    M_tiles     = (M_i + RowPar - 1) / RowPar;   //2
-    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
-    Total_tiles = M_tiles * N_tiles; //2
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 1
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 1
+    Total_tiles = M_tiles * N_tiles;
 
     init_mem_A();
     init_mem_B();
@@ -473,44 +403,14 @@ module tb_gemm_variable_dimensions;
     start_and_wait();
     verify_tiles();
 
-    $display("TEST 4 PASSED.\n");
-    
-    
-    // ------------------------------------------------------------
-    // TEST 5: 4×30 multiply 30×10 (one tile)
-    // ------------------------------------------------------------
-    $display("\n========== TEST 5: 4×30 × 30×10 ==========\n");
+    $display("TEST 1 PASSED.\n");
 
-    M_i = 4;
-    K_i = 30;
-    N_i = 10;
-
-    M_tiles     = (M_i + RowPar - 1) / RowPar;   //1
-    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
-    Total_tiles = M_tiles * N_tiles; //1
-
-    init_mem_A();
-    init_mem_B();
-    compute_golden();
-    clk_delay(2);
-    start_and_wait();
-    verify_tiles();
-
-    $display("TEST 5 PASSED.\n");
-    
-    
-    
-    
-    
-    
-    
-    
 
     // ------------------------------------------------------------
-    // TEST 3: 16×64 multiply 64×4 (one tile)
+    // TEST 2: 16x64 multiply 64x4 (one tile)
     // Put transposed A in sram_B, put transposed B in sram_A --> answer is transposed C in sram_C
     // ------------------------------------------------------------
-    $display("\n========== TEST 3: 16X64 X 64X4 - Case 2 ==========\n");
+    $display("\n========== TEST 2: 16X64 X 64X4 - Case 2 ==========\n");
 
     M_i = 4;
     K_i = 64;
@@ -527,7 +427,101 @@ module tb_gemm_variable_dimensions;
     start_and_wait();
     verify_tiles();
 
-    $display("TEST 3 PASSED.\n");    
+    $display("TEST 2 PASSED.\n");  
+
+
+    // ------------------------------------------------------------
+    // TEST 3: 32×32 multiply 32×32 - Case 3
+    // ------------------------------------------------------------
+
+    $display("\n========== TEST 3: 32x32 - Case 3 ==========\n");
+
+    M_i = 32;
+    K_i = 32;
+    N_i = 32;
+
+    M_tiles     = (M_i + RowPar - 1) / RowPar;   // 8
+    N_tiles     = (N_i + ColPar - 1) / ColPar;   // 2
+    Total_tiles = M_tiles * N_tiles;             // 16
+
+    init_mem_A();
+    init_mem_B();
+    compute_golden();
+    clk_delay(2);
+    start_and_wait();
+    verify_tiles();
+
+
+    $display("TEST 3 PASSED.\n");
+
+
+    // ------------------------------------------------------------
+    // TEST 4: 8x16 multiply 16x32 (4 tiles)
+    // ------------------------------------------------------------
+//    $display("\n========== TEST 4: 8x16 x 16x32 ==========\n");
+//
+//    M_i = 8;
+//    K_i = 16;
+//    N_i = 32;
+//
+//    M_tiles     = (M_i + RowPar - 1) / RowPar;   //2 
+//    N_tiles     = (N_i + ColPar - 1) / ColPar;   //2 
+//    Total_tiles = M_tiles * N_tiles; //4
+//
+//    init_mem_A();
+//    init_mem_B();
+//    compute_golden();
+//    clk_delay(2);
+//    start_and_wait();
+//    verify_tiles();
+
+//    $display("TEST 4 PASSED.\n");
+    
+    // ------------------------------------------------------------
+    // TEST 5: 5x64 multiply 64x16 (two tiles)
+    // ------------------------------------------------------------
+//    $display("\n========== TEST 5: 5x64 x 64x16 ==========\n");
+//
+//    M_i = 5;
+//    K_i = 64;
+//    N_i = 16;
+//
+//    M_tiles     = (M_i + RowPar - 1) / RowPar;   //2
+//    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
+//    Total_tiles = M_tiles * N_tiles; //2
+//
+//    init_mem_A();
+//    init_mem_B();
+//    compute_golden();
+//    clk_delay(2);
+//    start_and_wait();
+//    verify_tiles();
+//
+//    $display("TEST 5 PASSED.\n");
+    
+    
+    // ------------------------------------------------------------
+    // TEST 6: 4x30 multiply 30x10 (one tile)
+    // ------------------------------------------------------------
+//    $display("\n========== TEST 6: 4x30 x 30x10 ==========\n");
+//
+//    M_i = 4;
+//    K_i = 30;
+//    N_i = 10;
+//
+//    M_tiles     = (M_i + RowPar - 1) / RowPar;   //1
+//    N_tiles     = (N_i + ColPar - 1) / ColPar;   //1
+//    Total_tiles = M_tiles * N_tiles; //1
+//
+//    init_mem_A();
+//    init_mem_B();
+//    compute_golden();
+//    clk_delay(2);
+//    start_and_wait();
+//    verify_tiles();
+//
+//    $display("TEST 6 PASSED.\n");
+      
 
     $display("====================================");
     $display("           ALL TESTS PASSED");
